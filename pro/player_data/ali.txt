@@ -1,0 +1,6 @@
+Username: ali
+Password: Ali1234
+Email: adad.@fnasl.com
+Gold: 4
+Game played: 1
+Score: 13
