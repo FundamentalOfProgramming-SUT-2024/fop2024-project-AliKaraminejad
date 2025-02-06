@@ -1017,6 +1017,7 @@ void which_item(char *r){
 
 }
 void main_page(){
+    curs_set(0);
     if(!m)
         return;
     start_color();

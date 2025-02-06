@@ -1203,7 +1203,7 @@ void check(Room * rooms,player* user , int floor){
                 if(user->health<inital_health)
                     user->health+=2;
                 gorosnegi-=2;
-                show_message3("sir:",gorosnegi);
+                // show_message3("sir:",gorosnegi);
                 if(gorosnegi<=0){
                     show_message("you are not hungry any more ");
                     timing(user);
