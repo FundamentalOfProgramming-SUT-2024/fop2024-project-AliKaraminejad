@@ -1,0 +1,6 @@
+Username: mmd
+Password: Mmd1234
+Email: 123@d.com
+Gold: 0
+Game played: 0
+Score: 110

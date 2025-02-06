@@ -1,4 +1,6 @@
 #include <ncurses.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_mixer.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
@@ -12,10 +14,10 @@
 #define MAX_ROOMS 10
 #define ROOM_MIN_SIZE 7
 #define ROOM_MAX_SIZE 50
-typedef struct {
-    char filename[1024];
-    int score;
-} FileInfo;
+// typedef struct {
+//     char filename[1024];
+//     int score;
+// } FileInfo;
 typedef struct {
     int x, y;
 } d;
@@ -74,6 +76,9 @@ int temps_score;
 int temps_gun_collected[4];
 int gorosnegi=30;
 int finish;
+int man;
+int visited[MAP_HEIGHT][MAP_WIDTH];
+// int playing_music;
 // int m=1;
 char map[MAP_HEIGHT][MAP_WIDTH];
 char map2[MAP_HEIGHT][MAP_WIDTH];
@@ -102,6 +107,15 @@ void health(int p);
 void food(Room* rooms);
 void putting_spells(Room* rooms);
 void spell_menu(player* p);
+void play_music(const char *filename);
+void show_message3(const char * a,int f);
+void saving_map( char * username);
+int timing(player *p,time_t t) {
+    mvprintw(4,140,"%ld",time(NULL)-t);
+    return (time(NULL)-t);
+    
+}
+
 void initialize_map() {
     for (int y = 0; y < MAP_HEIGHT; y++) {
         for (int x = 0; x < MAP_WIDTH; x++) {
@@ -210,7 +224,7 @@ void creat_room(Room* rooms,int floor){
     }
     //int q=0,w=0,e=0,r=0,t=0;
     rooms[3].doors[0][0]=rooms[3].x+rand()%rooms[3].width;
-    rooms[3].doors[0][1]=rooms[3].y+rooms[3].height-1;
+    rooms[3].doors[0][1]=rooms[3].y;//+rooms[3].height-1;
     map[rooms[3].y][(rooms[3].doors[0][0])]='+';
     int m=rand()%2;
     // if(!e || m){
@@ -272,7 +286,7 @@ void creat_room(Room* rooms,int floor){
     }
     //int q=0,w=0,e=0,r=0,t=0;
     rooms[5].doors[0][0]=rooms[5].x+rand()%rooms[5].width;
-    rooms[5].doors[0][1]=rooms[5].y+rooms[5].height-1;
+    rooms[5].doors[0][1]=rooms[5].y;//+rooms[5].height-1;
     map[rooms[5].y][(rooms[5].doors[0][0])]='+';
     // int l=rand()%2;
     // if(!t || l){
@@ -281,6 +295,12 @@ void creat_room(Room* rooms,int floor){
         rooms[5].doors[1][0]=rooms[5].x;
         map[ rooms[5].doors[1][1]][rooms[5].doors[1][0]]='+';
     // }
+    if(floor==4){
+        int x=rand()%(rooms[5].width-2)+rooms[5].x+1;
+        int y=rand()%(rooms[5].height-2)+rooms[5].y+1;
+        map[y][x]='?';
+        map2[y][x]='?';
+    }
     connect_doors(rooms[0].doors[0][0],rooms[1].doors[0][0],rooms[0].doors[0][1],rooms[1].doors[0][1]);
     //int io=rand()%2;
     //if(io){
@@ -566,7 +586,23 @@ void move_player(player* p,int floor){
     p->x=rooms[0].x+1;
     int pause=0;
     time_t start=time(NULL);
-    while(time(NULL)-start<seconds){
+    while(1){//time(NULL)-start<seconds){
+    if(playing_music){
+        if(!donot){
+            play_music(musicer);
+            playing_music=0;
+        }    
+    } 
+    if(donot){
+        donot=0;
+        Mix_HaltMusic();
+    }   
+        for(int dfg=0;dfg<MAP_HEIGHT;dfg++){
+            for(int uyt=0;uyt<MAP_WIDTH;uyt++){
+                if(map2[dfg][uyt]=='$')
+                    visited[dfg][uyt]=1;
+            }
+        }
         // show_message2("score: ",p->score);
         // check(rooms,&user);
         // hiding_map(map2);
@@ -670,6 +706,20 @@ void move_player(player* p,int floor){
         //     else
         //         pause=0;
         // }
+        else if(a==27){
+            show_message("press (esc) once more to exit");
+            int r=getch();
+            if(r==27){
+                saving_map(username);
+                b=1;
+            }    
+        }
+        else if(a=='h' || a=='H'){
+            time_t temps=start;
+            pregame();
+            start=temps;
+            clear();
+        }
         else if((a=='f' || a=='F') ){
             a=getch();
             if(a=='8'){
@@ -726,6 +776,17 @@ void move_player(player* p,int floor){
                     map2[p->y][p->x]=map[p->y][p->x];
                     map2[++p->y][--p->x]='$';
                     refresh();
+                }
+            }
+        }
+        else if(a=='m' || a=='M'){
+            clear();
+            man++;
+            if(man%2){
+                for(int qwqw=0;qwqw<MAP_HEIGHT;qwqw++){
+                    for(int mew=0;mew<MAP_WIDTH;mew++){
+                        mvprintw(qwqw,mew,"%c",map2[qwqw][mew]);
+                    }
                 }
             }
         }
@@ -810,14 +871,18 @@ void check(Room * rooms,player* user , int floor){
                 if(!rooms[y].encryped_door_condition){
                     a=encrypting(); 
                     clear();
+                    init_pair(134,COLOR_MAGENTA,COLOR_BLACK);
+                    attron(COLOR_PAIR(134));
                     mvprintw(LINES/2-3,COLS/2-15,"the password is: %d",a);
                     refresh();
-                    napms(1000);  
+                    attroff(COLOR_PAIR(134));
+                    napms(1000);
+                    clear();  
                     break;
                 }    
             }
             else if(map2[i][j]=='$' && map[i][j]=='*'){
-                user->score+=13;
+                user->score+=5;
                 int h=rand()%4+1;
                 user->golds+=h;
                 map[i][j]='.';
@@ -933,10 +998,11 @@ void check(Room * rooms,player* user , int floor){
                 show_message2("the Monster hit you! health: ",user->health);
                 monsters_move(user,&monsters[9]);
             }
-            else if(map2[i][j]=='$' && map[i][j]=='W'){
+            else if(map2[i][j]=='$' && (map[i][j]=='W' || map[i][j]=='Q' || map[i][j]=='T' || map[i][j]=='Y' )){
                 if(user->health<inital_health)
                     user->health+=2;
                 gorosnegi-=2;
+                show_message3("sir:",gorosnegi);
                 if(!gorosnegi){
                     user->health=inital_health;
                     gorosnegi=30;
@@ -944,9 +1010,14 @@ void check(Room * rooms,player* user , int floor){
                 show_message2("you ate some food!  health: ",user->health);
                 map[i][j]='.';
             }
-            else if(map2[i][j]=='$' && i==rooms[5].doors[0][1] && j==rooms[5].doors[0][0] && floor==4){
-                show_message2("congratulations you could finish the game   score: ",user->score);
+            else if(map2[i][j]=='$' && ((i==rooms[5].doors[0][1] && j==rooms[5].doors[0][0] )||(i==rooms[5].doors[1][1] && j==rooms[5].doors[1][0]))  && floor==4){
+                // show_message2("congratulations you could finish the game   score: ",user->score);
+                play_music("track2.mp3");
+            }
+            else if(map2[i][j]=='$' && map[i][j]=='?'){
                 finish=1;
+                clear();
+                show_message2("congratulations you could finish the game   score: ",user->score);
             }
             else if(map2[i][j]=='$' && map[i][j]=='H'){
                 if(picking()){
@@ -1014,11 +1085,15 @@ void check(Room * rooms,player* user , int floor){
                         clear();
                         curs_set(TRUE);
                         echo(); 
+                        init_pair(135,COLOR_MAGENTA,COLOR_BLACK);
+                        attron(COLOR_PAIR(135));
                         mvprintw(LINES / 2 - 3, COLS / 2 - 15, "Enter the password: ");
                         refresh();
+                        attroff(COLOR_PAIR(135));
                         scanw("%d",&d);
                         noecho(); 
                         refresh(); 
+                        clear();
                         if(d==a){
                             rooms[which_room].encryped_door_condition=1;
                             break;
@@ -1050,8 +1125,76 @@ void check(Room * rooms,player* user , int floor){
     }
 }
 void display_map(Room * rooms) {
-    for (int y = 0; y < MAP_HEIGHT; y++) {
-        for (int x = 0; x < MAP_WIDTH; x++) {
+    for(int y=0;y<MAP_HEIGHT;y++){
+        for(int x=0;x<MAP_WIDTH;x++){
+            if(map2[y][x]=='#' && (visited[y-1][x] || visited[y+1][x] || visited[y][x-1] || visited[y][x+1])){
+                mvaddch(y,x,map[y][x]);
+            }
+            else if(map2[y][x]=='$'){
+                switch (color){
+                    case 0:
+                        start_color();
+                        init_pair(234,COLOR_RED,COLOR_BLACK);
+                        attron(COLOR_PAIR(234));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(234));
+                        break;
+                    case 1:
+                        start_color();
+                        init_pair(235,COLOR_GREEN,COLOR_BLACK);
+                        attron(COLOR_PAIR(235));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(235));
+                        break;
+                    case 2:
+                        start_color();
+                        init_pair(236,COLOR_BLUE,COLOR_BLACK);
+                        attron(COLOR_PAIR(236));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(236));
+                        break;
+                }
+            }
+            else if((map2[y][x]=='D' || map2[y][x]=='d')&& (visited[monsters[0].y-1][monsters[0].x] || visited[monsters[0].y+1][monsters[0].x]||visited[monsters[0].y-1][monsters[0].x-1]||visited[monsters[0].y-1][monsters[0].x+1]||visited[monsters[0].y+1][monsters[0].x-1]||visited[monsters[0].y+1][monsters[0].x+1]||visited[monsters[0].y][monsters[0].x-1]||visited[monsters[0].y][monsters[0].x+1])){
+                        start_color();
+                        init_pair(17,COLOR_GREEN,COLOR_BLACK);
+                        attron(COLOR_PAIR(17));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(17));
+                    }
+                    else if((map2[y][x]=='F' || map2[y][x]=='f') && (visited[y-1][x] || visited[y+1][x]||visited[y-1][x-1]||visited[y-1][x+1]||visited[y+1][x-1]||visited[y+1][x+1]||visited[y][x-1]||visited[y][x+1])){
+                        start_color();
+                        init_pair(16,COLOR_CYAN,COLOR_BLACK);
+                        attron(COLOR_PAIR(16));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(16));
+                    }
+                    else if((map2[y][x]=='G' || map2[y][x]=='g') && (visited[y-1][x] || visited[y+1][x]||visited[y-1][x-1]||visited[y-1][x+1]||visited[y+1][x-1]||visited[y+1][x+1]||visited[y][x-1]||visited[y][x+1])){
+                        start_color();
+                        init_pair(18,COLOR_BLUE,COLOR_BLACK);
+                        attron(COLOR_PAIR(18));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(18));
+                    }
+                    else if((map2[y][x]=='S' || map2[y][x]=='s') && (visited[y-1][x] || visited[y+1][x]||visited[y-1][x-1]||visited[y-1][x+1]||visited[y+1][x-1]||visited[y+1][x+1]||visited[y][x-1]||visited[y][x+1])){
+                        start_color();
+                        init_pair(19,COLOR_YELLOW,COLOR_BLACK);
+                        attron(COLOR_PAIR(19));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(19));
+                    }
+                    else if((map2[y][x]=='U' || map2[y][x]=='u') && (visited[y-1][x] || visited[y+1][x]||visited[y-1][x-1]||visited[y-1][x+1]||visited[y+1][x-1]||visited[y+1][x+1]||visited[y][x-1]||visited[y][x+1])){
+                        start_color();
+                        init_pair(20,COLOR_RED,COLOR_BLACK);
+                        attron(COLOR_PAIR(20));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(20));
+                    }
+        }
+    }
+
+    for(int  y=rooms[0].y;y<rooms[0].y+rooms[0].height;y++){
+        for(int x=rooms[0].x;x<rooms[0].x+rooms[0].width;x++){
             if(map2[y][x]=='@'){
                 int i;
                 for(i=0;i<6;i++){
@@ -1172,13 +1315,16 @@ void display_map(Room * rooms) {
                 mvaddch(y,x,map2[y][x]);
                 attroff(COLOR_PAIR(20));
             }
-            else if(map2[y][x]=='W'){
+            else if(map2[y][x]=='W' || map2[y][x]=='Q' || map2[y][x]=='T' || map2[y][x]=='Y' ){
                 start_color();
                 init_pair(232,COLOR_MAGENTA,COLOR_BLACK);
                 attron(COLOR_PAIR(232));
                 mvaddch(y,x,map2[y][x]);
                 attroff(COLOR_PAIR(232));
             }
+            // else if(map2[y][x]=='#' && (visited[y-1][x] || visited[y+1][x] || visited[y][x-1] || visited[y][x+1])){
+            //     mvaddch(y,x,map2[y][x]);
+            // }
             else if(map2[y][x]=='H' || map2[y][x]=='%' || map2[y][x]=='='){
                 start_color();
                 init_pair(233,COLOR_GREEN,COLOR_BLACK);
@@ -1218,10 +1364,190 @@ void display_map(Room * rooms) {
                 mvaddch(y,x,map2[y][x]);
                 attroff(COLOR_PAIR(142));
             }
-            else
+            else 
                 mvaddch(y,x,map2[y][x]);
         }
     }
+    for(int i=1;i<6;i++){
+        if(visited[rooms[i].doors[0][1]-1][rooms[i].doors[0][0]] || visited[rooms[i].doors[0][1]+1][rooms[i].doors[0][0]] || visited[rooms[i].doors[0][1]][rooms[i].doors[0][0]+1] || visited[rooms[i].doors[0][1]][rooms[i].doors[0][0]-1] || visited[rooms[i].doors[1][1]-1][rooms[i].doors[1][0]] || visited[rooms[i].doors[1][1]+1][rooms[i].doors[1][0]] || visited[rooms[i].doors[1][1]][rooms[i].doors[1][0]-1] || visited[rooms[i].doors[1][1]][rooms[i].doors[1][0]+1] || visited[rooms[i].doors[2][1]][rooms[i].doors[2][0]]){
+    
+            for (int y = rooms[i].y; y < rooms[i].y+rooms[i].height; y++) {
+                for (int x = rooms[i].x; x < rooms[i].x+rooms[i].width; x++) {
+                    if(map2[y][x]=='@'){
+                        int i;
+                        for(i=0;i<6;i++){
+                            if(y>=rooms[i].y && y<rooms[i].y+rooms[i].height && x>=rooms[i].x && x<rooms[i].x+rooms[i].width){
+                                break;
+                            }
+                        }
+                        if(!rooms[i].encryped_door_condition){
+                            start_color();
+                            init_pair(4,COLOR_RED,COLOR_BLACK);
+                            attron(COLOR_PAIR(4));
+                            mvaddch(y,x,map2[y][x]);
+                            attroff(COLOR_PAIR(4));
+                        }
+                        else {
+                            start_color();
+                            init_pair(8,COLOR_GREEN,COLOR_BLACK);
+                            attron(COLOR_PAIR(8));
+                            mvaddch(y,x,map2[y][x]);
+                            attroff(COLOR_PAIR(8));
+                        }    
+                    }
+                    else if(map2[y][x]=='&'){
+                        start_color();
+                        init_pair(5,COLOR_BLUE,COLOR_BLACK);
+                        attron(COLOR_PAIR(5));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(5));
+                    }
+                    else if(map2[y][x]=='K'){
+                        start_color();
+                        init_pair(9,COLOR_YELLOW,COLOR_BLACK);
+                        attron(COLOR_PAIR(9));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(9));
+                    }
+                    else if(map2[y][x]=='^'){
+                        start_color();
+                        init_pair(11,COLOR_CYAN,COLOR_BLACK);
+                        attron(COLOR_PAIR(11));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(11));
+                    }
+                    else if(map2[y][x]=='*'){
+                        start_color();
+                        init_pair(9,COLOR_YELLOW,COLOR_BLACK);
+                        attron(COLOR_PAIR(9));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(9));
+                    }
+                    else if(map2[y][x]=='!'){
+                        start_color();
+                        init_pair(12,COLOR_RED,COLOR_BLACK);
+                        attron(COLOR_PAIR(12));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(12));
+                    }
+                    else if(map2[y][x]=='/'){
+                        start_color();
+                        init_pair(13,COLOR_MAGENTA,COLOR_BLACK);
+                        attron(COLOR_PAIR(13));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(13));
+                    }
+                    else if(map2[y][x]=='X'){
+                        start_color();
+                        init_pair(14,COLOR_GREEN,COLOR_BLACK);
+                        attron(COLOR_PAIR(14));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(14));
+                    }
+                    else if(map2[y][x]=='M'){
+                        start_color();
+                        init_pair(15,COLOR_BLUE,COLOR_BLACK);
+                        attron(COLOR_PAIR(15));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(15));
+                    }
+                    else if(map2[y][x]=='N'){
+                        start_color();
+                        init_pair(16,COLOR_CYAN,COLOR_BLACK);
+                        attron(COLOR_PAIR(16));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(16));
+                    }
+                    else if(map2[y][x]=='D' || map2[y][x]=='d'){
+                        start_color();
+                        init_pair(17,COLOR_GREEN,COLOR_BLACK);
+                        attron(COLOR_PAIR(17));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(17));
+                    }
+                    else if(map2[y][x]=='F' || map2[y][x]=='f'){
+                        start_color();
+                        init_pair(16,COLOR_CYAN,COLOR_BLACK);
+                        attron(COLOR_PAIR(16));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(16));
+                    }
+                    else if(map2[y][x]=='G' || map2[y][x]=='g'){
+                        start_color();
+                        init_pair(18,COLOR_BLUE,COLOR_BLACK);
+                        attron(COLOR_PAIR(18));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(18));
+                    }
+                    else if(map2[y][x]=='S' || map2[y][x]=='s'){
+                        start_color();
+                        init_pair(19,COLOR_YELLOW,COLOR_BLACK);
+                        attron(COLOR_PAIR(19));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(19));
+                    }
+                    else if(map2[y][x]=='U' || map2[y][x]=='u'){
+                        start_color();
+                        init_pair(20,COLOR_RED,COLOR_BLACK);
+                        attron(COLOR_PAIR(20));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(20));
+                    }
+                    else if(map2[y][x]=='W'){
+                        start_color();
+                        init_pair(232,COLOR_MAGENTA,COLOR_BLACK);
+                        attron(COLOR_PAIR(232));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(232));
+                    }
+                    // else if(map2[y][x]=='#' && (visited[y-1][x] || visited[y+1][x] || visited[y][x-1] || visited[y][x+1])){
+                    //     mvaddch(y,x,map2[y][x]);
+                    // }
+                    else if(map2[y][x]=='H' || map2[y][x]=='%' || map2[y][x]=='='){
+                        start_color();
+                        init_pair(233,COLOR_GREEN,COLOR_BLACK);
+                        attron(COLOR_PAIR(233));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(233));
+                    }
+                    else if(map2[y][x]=='$'){
+                        switch (color){
+                            case 0:
+                                start_color();
+                                init_pair(234,COLOR_RED,COLOR_BLACK);
+                                attron(COLOR_PAIR(234));
+                                mvaddch(y,x,map2[y][x]);
+                                attroff(COLOR_PAIR(234));
+                                break;
+                            case 1:
+                                start_color();
+                                init_pair(235,COLOR_GREEN,COLOR_BLACK);
+                                attron(COLOR_PAIR(235));
+                                mvaddch(y,x,map2[y][x]);
+                                attroff(COLOR_PAIR(235));
+                                break;
+                            case 2:
+                                start_color();
+                                init_pair(236,COLOR_BLUE,COLOR_BLACK);
+                                attron(COLOR_PAIR(236));
+                                mvaddch(y,x,map2[y][x]);
+                                attroff(COLOR_PAIR(236));
+                                break;
+                        }
+                    }
+                    else if(map2[y][x]=='.' || map2[y][x]=='_' || map2[y][x]=='|' || map2[y][x]=='O'){
+                        start_color();
+                        init_pair(142,COLOR_MAGENTA,COLOR_BLACK);
+                        attron(COLOR_PAIR(142));
+                        mvaddch(y,x,map2[y][x]);
+                        attroff(COLOR_PAIR(142));
+                    }
+                    else 
+                        mvaddch(y,x,map2[y][x]);
+                }
+            }
+        }    
+    }    
 }
 void display_map2(Room rooms){
     start_color();
@@ -1605,6 +1931,22 @@ void show_message2(const char* message,int a){
     wrefresh(msg_win);
     delwin(msg_win); 
 }
+void show_message3(const char* message,int a){
+    int height = 5, width = 5;
+    int start_y = 0, start_x = COLS-5; 
+    start_color();
+    init_pair(11,COLOR_YELLOW,COLOR_BLACK);
+    WINDOW *msg_win = newwin(height, width, start_y, start_x);
+    box(msg_win, 0, 0); 
+    wattron(msg_win, COLOR_PAIR(11));
+    mvwprintw(msg_win, 1, (width - strlen(message)) / 2, "%s%d", message,a);
+    wattroff(msg_win, COLOR_PAIR(11));
+    wrefresh(msg_win);  
+    napms(1000); 
+    werase(msg_win);
+    wrefresh(msg_win);
+    delwin(msg_win); 
+}
 void gold(Room * rooms,player*user,int a){
 
     user->golds=a;
@@ -1763,8 +2105,10 @@ void guns(Room* rooms,player* user,int* a){
     }
 }
 int picking(){
-    clear();
-    mvprintw(LINES/2-3,COLS/2-15,"if you want to pick it press enter");
+    // clear();
+    // mvprintw(LINES/2-3,COLS/2-15,"if you want to pick it press enter");
+    // napms(2000);
+    show_message("if you want to pick it press enter");
     char a=getch();
     if(a==10)
         return 1;
@@ -1781,7 +2125,25 @@ void gun_menu(player* user){
     init_pair(104, COLOR_GREEN, COLOR_BLACK);
 
     while(1){
-        clear();  
+        clear(); 
+        switch (user->whicch_weapom_is_being_used){
+        case 1:
+            mvprintw(LINES/2-6,COLS/2-16,"*");
+            refresh();
+            break;
+        case 2:
+            mvprintw(LINES/2-2,COLS/2-16,"*");
+            break;
+        case 3:
+            mvprintw(LINES/2-1,COLS/2-16,"*");
+            break;
+        case 4:
+            mvprintw(LINES/2,COLS/2-16,"*");
+            break;
+        case 5:
+            mvprintw(LINES/2-5,COLS/2-16,"*");
+            break;
+    } 
         attron(COLOR_PAIR(104));
         mvprintw(LINES/2-6, COLS/2-28, "short range:");
         attroff(COLOR_PAIR(104));
@@ -1809,6 +2171,7 @@ void gun_menu(player* user){
         if(a == KEY_DOWN && vn < 4) vn++;
         else if(a == KEY_UP && vn > 0) vn--;
         else if(a == 10) {
+            clear();
             if(!user->whicch_weapom_is_being_used){
                 if(vn==0 )
                     user->whicch_weapom_is_being_used= vn + 1;
@@ -1828,11 +2191,14 @@ void gun_menu(player* user){
                 mvprintw(LINES/2-3,COLS/2-20,"you already have weapon put it down to pick another");
                 refresh();
                 napms(3000);
+                clear();
                 return;
             }    
         } 
-        else if(a=='i' || a=='I')
+        else if(a=='i' || a=='I'){
+            clear();
             return; 
+        }    
     }
 }
 void putting_monsters(Room * rooms,Monster* monsters,int floor){
@@ -1840,38 +2206,38 @@ void putting_monsters(Room * rooms,Monster* monsters,int floor){
     monsters[0].damage=7;
     monsters[0].life=5;
     monsters[0].type='D';
-    monsters[1].damage=12;
+    monsters[1].damage=9;
     monsters[1].life=10;
     monsters[1].type='F';
     monsters[1].range=5;
-    monsters[2].damage=15;
+    monsters[2].damage=11;
     monsters[2].life=15;
     monsters[2].type='G';
     monsters[2].range=10;
-    monsters[3].damage=18;
+    monsters[3].damage=13;
     monsters[3].life=20;
     monsters[3].type='S';
     monsters[3].range=5;
-    monsters[4].damage=23;
+    monsters[4].damage=15;
     monsters[4].life=30;
     monsters[4].type='U';
     /////////////////////
     monsters[5].damage=5;
     monsters[5].life=5;
     monsters[5].type='d';
-    monsters[6].damage=8;
+    monsters[6].damage=7;
     monsters[6].life=10;
     monsters[6].type='f';
     monsters[6].range=5;
-    monsters[7].damage=13;
+    monsters[7].damage=9;
     monsters[7].life=15;
     monsters[7].type='g';
     monsters[7].range=10;
-    monsters[8].damage=16;
+    monsters[8].damage=11;
     monsters[8].life=20;
     monsters[8].type='s';
     monsters[8].range=5;
-    monsters[9].damage=20;
+    monsters[9].damage=13;
     monsters[9].life=30;
     monsters[9].type='u';
     int h1=rand()%5+1;
@@ -2030,8 +2396,16 @@ void putting_monsters(Room * rooms,Monster* monsters,int floor){
 }
 void monsters_move(player*p,Monster* monsters){
     int when_to_stop=0;
-    for(int qw=0;qw<10;qw++){
-        int se=rand()%3;
+    for(int qw=0;qw<7;qw++){
+        for(int dfg=0;dfg<MAP_HEIGHT;dfg++){
+            for(int uyt=0;uyt<MAP_WIDTH;uyt++){
+                if(map2[dfg][uyt]=='$')
+                    visited[dfg][uyt]=1;
+            }
+        }
+        int se=rand()%4;
+        if(se)
+            qw--;
         // check(rooms,&user);
         // hiding_map(map2);
         if(monsters->life<=0){
@@ -2061,7 +2435,7 @@ void monsters_move(player*p,Monster* monsters){
         display_map(rooms);
         if(next_floor())
             break;
-        if(qw==9){
+        if(qw==6){
             for(int df1=0;df1<MAP_HEIGHT;df1++){
                 for(int gh=0;gh<MAP_WIDTH;gh++){
                     if(map2[df1][gh]==monsters->type){
@@ -2321,7 +2695,7 @@ void monsters_move(player*p,Monster* monsters){
         else if(a==32 && p->whicch_weapom_is_being_used){
             qw--;
             int abbas=0;
-            int th,jh;
+            int th,jh,th_temps,jh_temps;
             for(th=0;th<MAP_HEIGHT;th++){
                 for(jh=0;jh<MAP_WIDTH;jh++){
                     if(map2[th][jh]=='$'){
@@ -2342,9 +2716,40 @@ void monsters_move(player*p,Monster* monsters){
                     range=5;
                 show_message2("Now you can shoot from range: ",range);
                 char addd=getch();
-                
+                jh_temps=jh;
+                th_temps=th;
                 for(int ass=0;ass<range;ass++ ){
                     if(addd=='6'){
+                        
+                        while (map2[th][jh_temps] != '|' && map2[th][jh_temps] != '_' && map2[th][jh_temps] != 'O' && map2[th][jh_temps] != monsters->type) {
+                            switch (p->whicch_weapom_is_being_used) {
+                                case 2:
+                                    jh_temps++;
+                                    mvaddch(th, jh_temps, 'X');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;
+                                case 3:
+                                    jh_temps++;
+                                    mvaddch(th, jh_temps, 'M');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;  
+                                case 4:
+                                    jh_temps++;
+                                    mvaddch(th, jh_temps, 'N');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;       
+                            }
+                        }
+
                         if(map2[th][ass+jh]==monsters->type){
                             monsters->life-=p->gun[p->whicch_weapom_is_being_used-1].damage;
                             p->gun[p->whicch_weapom_is_being_used-1].collects-=1;
@@ -2356,13 +2761,43 @@ void monsters_move(player*p,Monster* monsters){
                             //     return;
                             break;
                         }
-                        else if(ass==range-1)
+                        else if(ass==range-1){
+                            p->gun[p->whicch_weapom_is_being_used-1].collects-=1;
                             show_message("you couldn't hit the monster!");
+                        }    
                         // else{
                         //     show_message("you couldn't hit the monster!");
                         // }
                     }
                     else if(addd=='2'){
+                        while (map2[th_temps][jh] != '|' && map2[th_temps][jh] != '_' && map2[th_temps][jh] != 'O' && map2[th_temps][jh] != monsters->type) {
+                            switch (p->whicch_weapom_is_being_used) {
+                                case 2:
+                                    th_temps++;
+                                    mvaddch(th_temps, jh, 'X');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;
+                                case 3:
+                                    th_temps++;
+                                    mvaddch(th_temps, jh, 'M');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;  
+                                case 4:
+                                    th_temps++;
+                                    mvaddch(th_temps, jh, 'N');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;       
+                            }
+                        }
                         // mvprintw(2,2,"%c",monsters->type);
                         if(map2[th+ass][jh]==monsters->type){
                             monsters->life-=p->gun[p->whicch_weapom_is_being_used-1].damage;
@@ -2376,13 +2811,43 @@ void monsters_move(player*p,Monster* monsters){
                             //     return;
                             break;
                         }
-                        else if(ass==range-1)
+                        else if(ass==range-1){
+                            p->gun[p->whicch_weapom_is_being_used-1].collects-=1;
                             show_message("you couldn't hit the monster!");
+                        }    
                         // else{
                         //     show_message("you couldn't hit the monster!");
                         // }
                     }
                     else if(addd=='4'){
+                        while (map2[th][jh_temps] != '|' && map2[th][jh_temps] != '_' && map2[th][jh_temps] != 'O' && map2[th][jh_temps] != monsters->type) {
+                            switch (p->whicch_weapom_is_being_used) {
+                                case 2:
+                                    jh_temps--;
+                                    mvaddch(th, jh_temps, 'X');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;
+                                case 3:
+                                    jh_temps--;
+                                    mvaddch(th, jh_temps, 'M');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;  
+                                case 4:
+                                    jh_temps--;
+                                    mvaddch(th, jh_temps, 'N');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;       
+                            }
+                        }
                         if(map2[th][jh-ass]==monsters->type){
                             monsters->life-=p->gun[p->whicch_weapom_is_being_used-1].damage;
                             p->gun[p->whicch_weapom_is_being_used-1].collects-=1;
@@ -2395,14 +2860,44 @@ void monsters_move(player*p,Monster* monsters){
                             //     return;
                             break;
                         }    
-                        else if(ass==range-1)
+                        else if(ass==range-1){
+                            p->gun[p->whicch_weapom_is_being_used-1].collects-=1;
                             show_message("you couldn't hit the monster!");
+                        }    
                         
                         // else{
                         //     show_message("you couldn't hit the monster!");
                         // }
                     }
                     else if(addd=='8'){
+                        while (map2[th_temps][jh] != '|' && map2[th_temps][jh] != '_' && map2[th_temps][jh] != 'O' && map2[th_temps][jh] != monsters->type) {
+                            switch (p->whicch_weapom_is_being_used) {
+                                case 2:
+                                    th_temps--;
+                                    mvaddch(th_temps, jh, 'X');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;
+                                case 3:
+                                    th_temps--;
+                                    mvaddch(th_temps, jh, 'M');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;  
+                                case 4:
+                                    th_temps--;
+                                    mvaddch(th_temps, jh, 'N');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;       
+                            }
+                        }
                         if(map2[th-ass][jh]==monsters->type){
                             monsters->life-=p->gun[p->whicch_weapom_is_being_used-1].damage;
                             p->gun[p->whicch_weapom_is_being_used-1].collects-=1;
@@ -2415,8 +2910,10 @@ void monsters_move(player*p,Monster* monsters){
                             //     return;
                             break;
                         }
-                        else if(ass==range-1)
+                        else if(ass==range-1){
+                            p->gun[p->whicch_weapom_is_being_used-1].collects-=1;
                             show_message("you couldn't hit the monster!");
+                        }    
                     }
                 }
                 // monsters->life-=p->gun[p->whicch_weapom_is_being_used-1].damage;
@@ -2437,10 +2934,17 @@ void monsters_move(player*p,Monster* monsters){
     }
 }
 void snake_move(player *p , Monster* monsters){
+    // play_music()
     int when_to_stop=0;
     while(1){
+        for(int dfg=0;dfg<MAP_HEIGHT;dfg++){
+            for(int uyt=0;uyt<MAP_WIDTH;uyt++){
+                if(map2[dfg][uyt]=='$')
+                    visited[dfg][uyt]=1;
+            }
+        }
         int h=0;
-        int df=rand()%3;
+        int df=rand()%4;
         if(monsters[3].life<=0){
             p->score+=15;
             for(int df1=0;df1<MAP_HEIGHT;df1++){
@@ -2468,8 +2972,17 @@ void snake_move(player *p , Monster* monsters){
         if(next_floor())
             break;
         char a=getch();
+        int py,px;
+        for(int as=0;as<MAP_HEIGHT;as++){
+            for(int ds=0;ds<MAP_WIDTH;ds++){
+                if(map2[as][ds]=='$'){
+                    py=as;
+                    px=ds;
+                }    
+            }
+        }
         if(a=='8'){
-            if(map[p->y-1][p->x]!='_' && map[p->y-1][p->x]!='|' && map[p->y-1][p->x]!=' ' && map[p->y-1][p->x]!='O'){
+            if(map[py-1][px]!='_' && map[py-1][px]!='|' && map[py-1][px]!=' ' && map[py-1][px]!='O'){
                 if(!df){
                     for(int df1=0;df1<MAP_HEIGHT;df1++){
                         for(int gh=0;gh<MAP_WIDTH;gh++){
@@ -2482,20 +2995,21 @@ void snake_move(player *p , Monster* monsters){
 
                     p->health-=monsters[3].damage;
                     show_message2("the snake bit you! health: ",p->health);
-                    map2[p->y][p->x]=map[p->y][p->x];
-                    map2[h+p->y][p->x]='S';
-                    map2[--p->y][p->x]='$';
+                    map2[py][px]=map[py][px];
+                    map2[h+py][px]='S';
+                    map2[--py][px]='$';
                 }
                 else{
-                    map2[p->y][p->x]=map[p->y][p->x];
-                    map2[--p->y][p->x]='$';
+                    map2[py][px]=map[py][px];
+                    map2[--py][px]='$';
                 }
                 
             }    
         }
         else if(a=='2'){
-            if(!df && !when_to_stop){
-                if(map[p->y+1][p->x]!='_' && map[p->y+1][p->x]!='|' && map[p->y+1][p->x]!=' ' && map[p->y+1][p->x]!='O' ){
+            if(map[py+1][px]!='_' && map[py+1][px]!='|' && map[py+1][px]!=' ' && map[py+1][px]!='O' ){
+                if(!df && !when_to_stop){
+                
                     for(int df1=0;df1<MAP_HEIGHT;df1++){
                         for(int gh=0;gh<MAP_WIDTH;gh++){
                             if(map2[df1][gh]=='S'){
@@ -2507,20 +3021,21 @@ void snake_move(player *p , Monster* monsters){
                     }
                     p->health-=monsters[3].damage;
                     show_message2("the snake bit you! health: ",p->health);
-                    map2[p->y][p->x]=map[p->y][p->x];
-                    map2[p->y-h][p->x]='S';
-                    map2[++p->y][p->x]='$';
+                    map2[py][px]=map[py][px];
+                    map2[py-h][px]='S';
+                    map2[++py][px]='$';
                     
                 }    
-            }
-            else{
-                map2[p->y][p->x]=map[p->y][p->x];
-                map2[++p->y][p->x]='$';
-            }    
+                else{
+                    map2[py][px]=map[py][px];
+                    map2[++py][px]='$';
+                }
+            }        
         }
         else if(a=='6'){
-            if(!df&& !when_to_stop){
-                if(map[p->y][p->x+1]!='_' && map[p->y][p->x+1]!='|' && map[p->y][p->x+1]!=' ' && map[p->y][p->x+1]!='O'){
+            if(map[py][px+1]!='_' && map[py][px+1]!='|' && map[py][px+1]!=' ' && map[py][px+1]!='O'){
+                if(!df&& !when_to_stop){
+                
                     for(int df1=0;df1<MAP_HEIGHT;df1++){
                         for(int gh=0;gh<MAP_WIDTH;gh++){
                             if(map2[df1][gh]=='S'){
@@ -2532,20 +3047,22 @@ void snake_move(player *p , Monster* monsters){
                     }
                     p->health-=monsters[3].damage;
                     show_message2("the snake bit you! health: ",p->health);
-                    map2[p->y][p->x]=map[p->y][p->x];
-                    map2[p->y][p->x+h]='S';
-                    map2[p->y][++p->x]='$';
+                    map2[py][px]=map[py][px];
+                    map2[py][px+h]='S';
+                    map2[py][++px]='$';
                     
                 }    
-            }
-            else{
-                map2[p->y][p->x]=map[p->y][p->x];
-                map2[p->y][++p->x]='$';
-            }    
+            
+                else{
+                    map2[py][px]=map[py][px];
+                    map2[py][++px]='$';
+                }
+            }        
         }
         else if(a=='4'){
-            if(!df && !when_to_stop){
-                if(map[p->y][p->x-1]!='_' && map[p->y][p->x-1]!='|' && map[p->y][p->x-1]!=' ' && map[p->y][p->x-1]!='O' ){
+            if(map[py][px-1]!='_' && map[py][px-1]!='|' && map[py][px-1]!=' ' && map[py][px-1]!='O' ){
+                if(!df && !when_to_stop){
+                
                     for(int df1=0;df1<MAP_HEIGHT;df1++){
                         for(int gh=0;gh<MAP_WIDTH;gh++){
                             if(map2[df1][gh]=='S'){
@@ -2557,68 +3074,22 @@ void snake_move(player *p , Monster* monsters){
                     }
                     p->health-=monsters[3].damage;
                     show_message2("the snake bit you! health: ",p->health);
-                    map2[p->y][p->x]=map[p->y][p->x];
-                    map2[p->y][p->x-h]='S';
-                    map2[p->y][--p->x]='$';
+                    map2[py][px]=map[py][px];
+                    map2[py][px-h]='S';
+                    map2[py][--px]='$';
                 
                 }    
-            }
-            else{
-                map2[p->y][p->x]=map[p->y][p->x];
-                map2[p->y][--p->x]='$';
-            }    
-        }
-        else if(a=='9'){
-            if(!df && !when_to_stop){
-                if(map[p->y-1][p->x+1]!='_' && map[p->y-1][p->x+1]!='|' && map[p->y-1][p->x+1]!=' ' && map[p->y-1][p->x+1]!='O'){
-                    for(int df1=0;df1<MAP_HEIGHT;df1++){
-                        for(int gh=0;gh<MAP_WIDTH;gh++){
-                            if(map2[df1][gh]=='S'){
-                                map[monsters[3].y][monsters[3].x]='.';
-                            map2[df1][gh]=map[df1][gh];
-                                
-                            }    
-                        }
-                    }
-                    p->health-=monsters[3].damage;
-                    show_message2("the snake bit you! health: ",p->health);
-                    map2[p->y][p->x]=map[p->y][p->x];
-                    map2[--p->y][++p->x]='$';
-                    
-                }    
-            }
-            else{
-                map2[p->y][p->x]='S';
-                map2[--p->y][++p->x]='$';
-            }    
-        }
-        else if(a=='7'){
-            if(!df && !when_to_stop){
-                if(map[p->y-1][p->x-1]!='_' && map[p->y-1][p->x-1]!='|' && map[p->y-1][p->x-1]!=' ' && map[p->y-1][p->x-1]!='O'){
-                    for(int df1=0;df1<MAP_HEIGHT;df1++){
-                        for(int gh=0;gh<MAP_WIDTH;gh++){
-                            if(map2[df1][gh]=='S'){
-                                map[monsters[3].y][monsters[3].x]='.';
-                            map2[df1][gh]=map[df1][gh];
-                                
-                            }    
-                        }
-                    }
-                    p->health-=monsters[3].damage;
-                    show_message2("the snake bit you! health: ",p->health);
-                    map2[p->y][p->x]='S';
-                    map2[--p->y][--p->x]='$';
-                    
+            
+                else{
+                    map2[py][px]=map[py][px];
+                    map2[py][--px]='$';
                 } 
-            }
-            else{
-                map2[p->y][p->x]=map[p->y][p->x];
-                map2[--p->y][++p->x]='$';
             }       
         }
-        else if(a=='1'){
-            if(!df && !when_to_stop){
-                if(map[p->y+1][p->x-1]!='_' && map[p->y+1][p->x-1]!='|' && map[p->y+1][p->x-1]!=' ' && map[p->y+1][p->x-1]!='O' ){
+        else if(a=='9'){
+            if(map[py-1][px+1]!='_' && map[py-1][px+1]!='|' && map[py-1][px+1]!=' ' && map[py-1][px+1]!='O'){
+                if(!df && !when_to_stop){
+                
                     for(int df1=0;df1<MAP_HEIGHT;df1++){
                         for(int gh=0;gh<MAP_WIDTH;gh++){
                             if(map2[df1][gh]=='S'){
@@ -2630,19 +3101,73 @@ void snake_move(player *p , Monster* monsters){
                     }
                     p->health-=monsters[3].damage;
                     show_message2("the snake bit you! health: ",p->health);
-                    map2[p->y][p->x]='S';
-                    map2[++p->y][--p->x]='$';
+                    map2[py][px]=map[py][px];
+                    map2[--py][++px]='$';
+                    
+                }    
+            
+                else{
+                    map2[py][px]='S';
+                    map2[--py][++px]='$';
+                } 
+            }       
+        }
+        else if(a=='7'){
+            if(map[py-1][px-1]!='_' && map[py-1][px-1]!='|' && map[py-1][px-1]!=' ' && map[py-1][px-1]!='O'){
+                if(!df && !when_to_stop){
+                
+                    for(int df1=0;df1<MAP_HEIGHT;df1++){
+                        for(int gh=0;gh<MAP_WIDTH;gh++){
+                            if(map2[df1][gh]=='S'){
+                                map[monsters[3].y][monsters[3].x]='.';
+                            map2[df1][gh]=map[df1][gh];
+                                
+                            }    
+                        }
+                    }
+                    p->health-=monsters[3].damage;
+                    show_message2("the snake bit you! health: ",p->health);
+                    map2[py][px]='S';
+                    map2[--py][--px]='$';
+                    
+                } 
+            
+                else{
+                    map2[py][px]=map[py][px];
+                    map2[--py][--px]='$';
+                }
+            }           
+        }
+        else if(a=='1'){
+            if(map[py+1][px-1]!='_' && map[py+1][px-1]!='|' && map[py+1][px-1]!=' ' && map[py+1][px-1]!='O' ){
+                if(!df && !when_to_stop){
+                
+                    for(int df1=0;df1<MAP_HEIGHT;df1++){
+                        for(int gh=0;gh<MAP_WIDTH;gh++){
+                            if(map2[df1][gh]=='S'){
+                                map[monsters[3].y][monsters[3].x]='.';
+                            map2[df1][gh]=map[df1][gh];
+                                
+                            }    
+                        }
+                    }
+                    p->health-=monsters[3].damage;
+                    show_message2("the snake bit you! health: ",p->health);
+                    map2[py][px]='S';
+                    map2[++py][--px]='$';
                     
                 }
-            }
-            else{
-                map2[p->y][p->x]=map[p->y][p->x];
-                map2[--p->y][++p->x]='$';
-            }        
+            
+                else{
+                    map2[py][px]=map[py][px];
+                    map2[++py][--px]='$';
+                }
+            }            
         }
         else if(a=='3'){
-            if(!df && !when_to_stop ){
-                if(map[p->y+1][p->x+1]!='_' && map[p->y+1][p->x+1]!='|' && map[p->y+1][p->x+1]!=' ' && map[p->y+1][p->x+1]!='O' ){
+            if(map[py+1][px+1]!='_' && map[py+1][px+1]!='|' && map[py+1][px+1]!=' ' && map[py+1][px+1]!='O' ){
+                if(!df && !when_to_stop ){
+                
                     for(int df1=0;df1<MAP_HEIGHT;df1++){
                         for(int gh=0;gh<MAP_WIDTH;gh++){
                             if(map2[df1][gh]=='S'){
@@ -2654,20 +3179,21 @@ void snake_move(player *p , Monster* monsters){
                     }
                     p->health-=monsters[3].damage;
                     show_message2("the snake bit you! health: ",p->health);
-                    map2[p->y][p->x]='S';
-                    map2[++p->y][++p->x]='$';
+                    map2[py][px]='S';
+                    map2[++py][++px]='$';
                     
                 }
-            }
-            else{
-                map2[p->y][p->x]=map[p->y][p->x];
-                map2[--p->y][++p->x]='$';
-            }        
+            
+                else{
+                    map2[py][px]=map[py][px];
+                    map2[++py][++px]='$';
+                } 
+            }           
         }
         else if(a=='s' || a=='S'){
             int i;
             for(i=0;i<6;i++){
-                if(p->y>=rooms[i].y && p->y<rooms[i].y+rooms[i].height && p->x>=rooms[i].x && p->x<rooms[i].x+rooms[i].width)
+                if(py>=rooms[i].y && py<rooms[i].y+rooms[i].height && px>=rooms[i].x && px<rooms[i].x+rooms[i].width)
                     break;
             }
             switch (i){
@@ -2748,7 +3274,7 @@ void snake_move(player *p , Monster* monsters){
                 if(abbas)
                     break;
             }
-            if(p->whicch_weapom_is_being_used!=1 && p->whicch_weapom_is_being_used!=5 && p->gun[p->whicch_weapom_is_being_used].collects>0){
+            if(p->whicch_weapom_is_being_used!=1 && p->whicch_weapom_is_being_used!=5 && p->gun[p->whicch_weapom_is_being_used-1].collects>0){
                 int range;
                 if(p->whicch_weapom_is_being_used==2)
                     range=5;
@@ -2759,11 +3285,40 @@ void snake_move(player *p , Monster* monsters){
                 
                 show_message2("Now you can shoot from range: ",range);
                 char addd=getch();
-                
+                int th_temps=th;
+                int jh_temps=jh;
                 for(int ass=0;ass<range;ass++ ){
                     if(addd=='6'){
+                        while (map2[th][jh_temps] != '|' && map2[th][jh_temps] != '_' && map2[th][jh_temps] != 'O' && map2[th][jh_temps] != 'S' ) {
+                            switch (p->whicch_weapom_is_being_used) {
+                                case 2:
+                                    jh_temps++;
+                                    mvaddch(th, jh_temps, 'X');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;
+                                case 3:
+                                    jh_temps++;
+                                    mvaddch(th, jh_temps, 'M');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;  
+                                case 4:
+                                    jh_temps++;
+                                    mvaddch(th, jh_temps, 'N');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;       
+                            }
+                        }
                         if(map2[th][ass+jh]==monsters[3].type){
-                            monsters[3].life-=p->gun[p->whicch_weapom_is_being_used-1].damage;
+                            monsters[3].life-=(p->gun[p->whicch_weapom_is_being_used-1].damage);//();
                             p->gun[p->whicch_weapom_is_being_used-1].collects-=1;
                             show_message2("Wooow! you hit the Monster. snake's lifespan: ",monsters[3].life);
                             if(p->whicch_weapom_is_being_used==3){
@@ -2781,6 +3336,34 @@ void snake_move(player *p , Monster* monsters){
                         // }
                     }
                     else if(addd=='2'){
+                        while (map2[th_temps][jh] != '|' && map2[th_temps][jh] != '_' && map2[th_temps][jh] != 'O' && map2[th_temps][jh] != 'S') {
+                            switch (p->whicch_weapom_is_being_used) {
+                                case 2:
+                                    th_temps++;
+                                    mvaddch(th_temps, jh, 'X');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;
+                                case 3:
+                                    th_temps++;
+                                    mvaddch(th_temps, jh, 'M');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;  
+                                case 4:
+                                    th_temps++;
+                                    mvaddch(th_temps, jh, 'N');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;       
+                            }
+                        }
                         // mvprintw(2,2,"%c",monsters[3].type);
                         if(map2[th+ass][jh]==monsters[3].type){
                             monsters[3].life-=p->gun[p->whicch_weapom_is_being_used-1].damage;
@@ -2797,6 +3380,34 @@ void snake_move(player *p , Monster* monsters){
                         // }
                     }
                     else if(addd=='4'){
+                        while (map2[th][jh_temps] != '|' && map2[th][jh_temps] != '_' && map2[th][jh_temps] != 'O' && map2[th][jh_temps] != 'S') {
+                            switch (p->whicch_weapom_is_being_used) {
+                                case 2:
+                                    jh_temps--;
+                                    mvaddch(th, jh_temps, 'X');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;
+                                case 3:
+                                    jh_temps--;
+                                    mvaddch(th, jh_temps, 'M');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;  
+                                case 4:
+                                    jh_temps--;
+                                    mvaddch(th, jh_temps, 'N');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;       
+                            }
+                        }
                         if(map2[th][jh-ass]==monsters[3].type){
                             monsters[3].life-=p->gun[p->whicch_weapom_is_being_used-1].damage;
                             p->gun[p->whicch_weapom_is_being_used-1].collects-=1;
@@ -2812,6 +3423,34 @@ void snake_move(player *p , Monster* monsters){
                         // }
                     }
                     else if(addd=='8'){
+                        while (map2[th_temps][jh] != '|' && map2[th_temps][jh] != '_' && map2[th_temps][jh] != 'O' && map2[th_temps][jh] != 'S') {
+                            switch (p->whicch_weapom_is_being_used) {
+                                case 2:
+                                    th_temps--;
+                                    mvaddch(th_temps, jh, 'X');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;
+                                case 3:
+                                    th_temps--;
+                                    mvaddch(th_temps, jh, 'M');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;  
+                                case 4:
+                                    th_temps--;
+                                    mvaddch(th_temps, jh, 'N');
+                                    refresh();
+                                    napms(500);
+                                    clear();
+                                    display_map(rooms);
+                                    break;       
+                            }
+                        }
                         if(map2[th-ass][jh]==monsters[3].type){
                             monsters[3].life-=p->gun[p->whicch_weapom_is_being_used-1].damage;
                             p->gun[p->whicch_weapom_is_being_used-1].collects-=1;
@@ -2911,6 +3550,7 @@ void health(int a){
 }
 void food(Room * rooms){
     srand(time(NULL));
+    char fooding[]="TYWWQQ";
     for(int i=0;i<6;i++){
         int k=rand()%2;
         switch(k){
@@ -2922,8 +3562,8 @@ void food(Room * rooms){
                 if(map[y][x]=='&' || map[y][x]=='<' || map[y][x]=='O' || (y==rooms[i].trap.y && x==rooms[i].trap.x))
                     i--;
                 else{
-                    map[y][x]='W';
-                    map2[y][x]='W';
+                    map[y][x]=fooding[i];
+                    map2[y][x]=fooding[i];
                 }
                 break;
         }
@@ -2939,8 +3579,8 @@ void food(Room * rooms){
                 if(map[y][x]=='&' || map[y][x]=='<' || map[y][x]=='O' || (y==rooms[i].trap.y && x==rooms[i].trap.x))
                     i--;
                 else{
-                    map[y][x]='W';
-                    map2[y][x]='W';
+                    map[y][x]=fooding[i];
+                    map2[y][x]=fooding[i];
                 }
                 break;
         }
@@ -2975,6 +3615,7 @@ void spell_menu(player* p){
         if(a == KEY_DOWN && vn < 2) vn++;
         else if(a == KEY_UP && vn > 0) vn--;
         else if(a == 10) {
+            clear();
             if(vn==0 ){
                 if(p->spell[0]!=0){
                     p->spell[0]--;
@@ -3419,8 +4060,10 @@ void spell_menu(player* p){
             }    
             return;
         } 
-        else if(a=='p' || a=='P')
+        else if(a=='p' || a=='P'){
+            clear();
             return; 
+        }    
     }
 }
 void updating_file(char *username, char *email, char *password, int gold, int score) {
@@ -3476,15 +4119,52 @@ void updating_file(char *username, char *email, char *password, int gold, int sc
     fclose(file);
     show_message2("Golds ", stored_gold);
 }
+void saving_map(char *username){//,char * map[150]){
+    FILE *file;
+    char filepath[1024];
+    snprintf(filepath, sizeof(filepath), "./player_data/%s.txt", username);
+    file=fopen(filepath,"w");
+    fprintf(file,"\f");
+    for (int i = 0; i < MAP_HEIGHT; i++) {
+        for(int j=0;j<MAP_WIDTH;j++){
+            if(visited[i][j])
+                fprintf(file, "%c", map2[i][j]); 
+        }
+        fprintf(file,"\n");     
+    }
+    fclose(file);
+}
+void play_music(const char *filename) {
+    if (Mix_OpenAudio(22050, MIX_DEFAULT_FORMAT, 2, 4096) == -1) {
+        fprintf(stderr, "Mix_OpenAudio: %s", Mix_GetError());
+        exit(1);
+    }
+
+    Mix_Music *music = Mix_LoadMUS(filename);
+    if (!music) {
+        fprintf(stderr, "Mix_LoadMUS: %s", Mix_GetError());
+        exit(1);
+    }
+
+    Mix_PlayMusic(music, -1);
+}
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <dirent.h>
+#include <errno.h>
+#include <ncurses.h>
 int main() {
     srand(time(NULL));
-    setlocale(LC_ALL, "");
+    // setlocale(LC_ALL, "");
     initscr();
     keypad(stdscr,true);
     cbreak();
+    
     // noecho();
     // while(1){
         main_page(&m);
+        
         // Difficulty(&m);
         // show_message(username);
         if(difficulty==2){
@@ -3496,10 +4176,16 @@ int main() {
             inital_health=60;
         }
         if(!m){
+            // time_t start=time(NULL);
+            // while(timing(&user,start)<10)
+            //     timing(&user,start);
+            
+            // if(!donot)
+            //     play_music(musicer);
+            noecho();
+            curs_set(0);
             clear();
             curs_set(0);
-            // show_message(email);
-            // process_files("./player_data");
             initialize_map();
             creat_room(rooms,1);
             maps();
@@ -3514,6 +4200,11 @@ int main() {
             guns(rooms,&user,adidas);
             putting_monsters(rooms,monsters,1);
             move_player(&user,1);
+            clear();
+            for(int i=0;i<MAP_HEIGHT;i++){
+                for(int j=0;j<MAP_WIDTH;j++)
+                    visited[i][j]=0;
+            }
             initialize_map();
             creat_room(rooms,2);
             maps();
@@ -3528,6 +4219,11 @@ int main() {
             putting_spells(rooms);
             putting_monsters(rooms,monsters,2);
             move_player(&user,2);
+            clear();
+            for(int i=0;i<MAP_HEIGHT;i++){
+                for(int j=0;j<MAP_WIDTH;j++)
+                    visited[i][j]=0;
+            }
             initialize_map();
             creat_room(rooms,3);
             maps();
@@ -3541,6 +4237,11 @@ int main() {
             putting_spells(rooms);
             putting_monsters(rooms,monsters,3);
             move_player(&user,3);
+            clear();
+            for(int i=0;i<MAP_HEIGHT;i++){
+                for(int j=0;j<MAP_WIDTH;j++)
+                    visited[i][j]=0;
+            }
             initialize_map();
             creat_room(rooms,4);
             maps();
@@ -3554,6 +4255,8 @@ int main() {
             putting_spells(rooms);
             putting_monsters(rooms,monsters,4);
             move_player(&user,4);
+            if(b)
+                play_music("Habib - Marde Tanhaye Shab (128) (mp3cut.net).mp3");
             if(finish)
                 updating_file(username,email,password,user.golds,user.score);
             refresh();

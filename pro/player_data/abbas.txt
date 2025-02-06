@@ -1,0 +1,6 @@
+Username: abbas
+Password: Abbas1234
+Email: dffdf@aefs.com
+Gold: 0
+Game played: 13
+Score: 34

@@ -1,6 +1,7 @@
 Username: ali
 Password: Ali1234
-Email: adad.@fnasl.com
-Gold: 4
+Email: dsa@gmsi.com
+Gold: 0
 Game played: 1
-Score: 13
+Score: 97
+Experience: 0
