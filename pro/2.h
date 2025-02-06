@@ -273,15 +273,15 @@ void display_scores_ncurses(FileInfo *files, int count) {
             mvwprintw(msg_win,row,3,"->");
         }
         if(j==0){
-            mvwprintw(msg_win,row,1,"🥇");
+            // mvprintw(2,2,"🥇");
             mvwprintw(msg_win,row,5,"(ZEOS)");
         }    
         else if(j==1){
-            mvwprintw(msg_win,row,1,"🥈");
+            // mvwprintw(msg_win,row,1,"🥈");
             mvwprintw(msg_win,row,5,"(GOAT)");
         }    
         else if(j==2){
-            mvwprintw(msg_win,row,1,"🥉");
+            // mvwprintw(msg_win,row,1,"🥉");
             mvwprintw(msg_win,row,5,"(KING)");
         }    
         wattroff(msg_win, COLOR_PAIR(212));

@@ -74,7 +74,7 @@ int temps_gold;
 int temps_health;
 int temps_score;
 int temps_gun_collected[4];
-int gorosnegi=30;
+int gorosnegi=20;
 int finish;
 int man;
 int visited[MAP_HEIGHT][MAP_WIDTH];
@@ -110,12 +110,210 @@ void spell_menu(player* p);
 void play_music(const char *filename);
 void show_message3(const char * a,int f);
 void saving_map( char * username);
-int timing(player *p,time_t t) {
-    mvprintw(4,140,"%ld",time(NULL)-t);
-    return (time(NULL)-t);
-    
+int sir;
+void food_menu();
+void timing(player *p) {
+    time_t start=time(NULL);
+                    while (time(NULL) - start < 10) {
+                        temps_gold=p->golds;
+                        temps_health=p->health;
+                        health(temps_health);
+                        for(int i=1;i<5;i++){
+                            temps_gun_collected[i-1]=p->gun[i].collects;
+                        }
+                        for(int dfg=0;dfg<MAP_HEIGHT;dfg++){
+                            for(int uyt=0;uyt<MAP_WIDTH;uyt++){
+                                if(map2[dfg][uyt]=='$')
+                                    visited[dfg][uyt]=1;
+                            }
+                        }
+                        // check(rooms,&user,1);
+                        if(b)
+                            return;
+                        display_map(rooms);
+                        if(next_floor())
+                            break;
+                        char a=getch();
+                        if(a=='8'){
+                            if(map[p->y-1][p->x]!='_' && map[p->y-1][p->x]!='|' && map[p->y-1][p->x]!=' ' && map[p->y-1][p->x]!='O'){
+                                map2[p->y][p->x]=map[p->y][p->x];
+                                map2[--p->y][p->x]='$';
+                                
+                            }    
+                        }
+                        else if(a=='2'){
+                            if(map[p->y+1][p->x]!='_' && map[p->y+1][p->x]!='|' && map[p->y+1][p->x]!=' ' && map[p->y+1][p->x]!='O'){
+                                map2[p->y][p->x]=map[p->y][p->x];
+                                map2[++p->y][p->x]='$';
+                                
+                            }    
+                        }
+                        else if(a=='6'){
+                            if(map[p->y][p->x+1]!='_' && map[p->y][p->x+1]!='|' && map[p->y][p->x+1]!=' ' && map[p->y][p->x+1]!='O'){
+                                map2[p->y][p->x]=map[p->y][p->x];
+                                map2[p->y][++p->x]='$';
+                                
+                            }    
+                        }
+                        else if(a=='4'){
+                            if(map[p->y][p->x-1]!='_' && map[p->y][p->x-1]!='|' && map[p->y][p->x-1]!=' ' && map[p->y][p->x-1]!='O'){
+                                map2[p->y][p->x]=map[p->y][p->x];
+                                map2[p->y][--p->x]='$';
+                            
+                            }    
+                        }
+                        else if(a=='9'){
+                            if(map[p->y-1][p->x+1]!='_' && map[p->y-1][p->x+1]!='|' && map[p->y-1][p->x+1]!=' ' && map[p->y-1][p->x+1]!='O'){
+                                map2[p->y][p->x]=map[p->y][p->x];
+                                map2[--p->y][++p->x]='$';
+                                
+                            }    
+                        }
+                        else if(a=='7'){
+                            if(map[p->y-1][p->x-1]!='_' && map[p->y-1][p->x-1]!='|' && map[p->y-1][p->x-1]!=' ' && map[p->y-1][p->x-1]!='O'){
+                                map2[p->y][p->x]=map[p->y][p->x];
+                                map2[--p->y][--p->x]='$';
+                                
+                            }    
+                        }
+                        else if(a=='1'){
+                            if(map[p->y+1][p->x-1]!='_' && map[p->y+1][p->x-1]!='|' && map[p->y+1][p->x-1]!=' ' && map[p->y+1][p->x-1]!='O'){
+                                map2[p->y][p->x]=map[p->y][p->x];
+                                map2[++p->y][--p->x]='$';
+                                
+                            }    
+                        }
+                        else if(a=='3'){
+                            if(map[p->y+1][p->x+1]!='_' && map[p->y+1][p->x+1]!='|' && map[p->y+1][p->x+1]!=' ' && map[p->y+1][p->x+1]!='O'){
+                                map2[p->y][p->x]=map[p->y][p->x];
+                                map2[++p->y][++p->x]='$';
+                                
+                            }    
+                        }
+                        else if((a=='f' || a=='F') ){
+                            a=getch();
+                            if(a=='8'){
+                                while(map[p->y-1][p->x]=='.'){
+                                    map2[p->y][p->x]=map[p->y][p->x];
+                                    map2[--p->y][p->x]='$';
+                                    refresh();
+                                }
+                            }
+                            else if(a=='2'){
+                                while(map[p->y+1][p->x]=='.'){
+                                    map2[p->y][p->x]=map[p->y][p->x];
+                                    map2[++p->y][p->x]='$';
+                                    refresh();
+                                }
+                            }
+                            else  if(a=='6'){
+                                while(map[p->y][p->x+1]=='.'){
+                                    map2[p->y][p->x]=map[p->y][p->x];
+                                    map2[p->y][++p->x]='$';
+                                    refresh();
+                                }
+                            }
+                            else  if(a=='4'){
+                                while(map[p->y][p->x-1]=='.'){
+                                    map2[p->y][p->x]=map[p->y][p->x];
+                                    map2[p->y][--p->x]='$';
+                                    refresh();
+                                }
+                            }
+                            else  if(a=='9'){
+                                while(map[p->y-1][p->x+1]=='.'){
+                                    map2[p->y][p->x]=map[p->y][p->x];
+                                    map2[--p->y][++p->x]='$';
+                                    refresh();
+                                }
+                            }
+                            else  if(a=='7'){
+                                while(map[p->y-1][p->x-1]=='.'){
+                                    map2[p->y][p->x]=map[p->y][p->x];
+                                    map2[--p->y][--p->x]='$';
+                                    refresh();
+                                }
+                            }
+                            else  if(a=='3'){
+                                while(map[p->y+1][p->x+1]=='.'){
+                                    map2[p->y][p->x]=map[p->y][p->x];
+                                    map2[++p->y][++p->x]='$';
+                                    refresh();
+                                }
+                            }
+                            else  if(a=='1'){
+                                while(map[p->y+1][p->x-1]=='.'){
+                                    map2[p->y][p->x]=map[p->y][p->x];
+                                    map2[++p->y][--p->x]='$';
+                                    refresh();
+                                }
+                            }
+                        }
+                        else if(a=='s' || a=='S'){
+                            int i;
+                            for(i=0;i<6;i++){
+                                if(p->y>=rooms[i].y && p->y<rooms[i].y+rooms[i].height && p->x>=rooms[i].x && p->x<rooms[i].x+rooms[i].width)
+                                    break;
+                            }
+                            switch (i){
+                                case 0:
+                                    clear();
+                                    display_map2(rooms[1]);
+                                    display_map2(rooms[2]);
+                                    refresh();
+                                    sleep(10);
+                                    break;
+                                case 1:
+                                    clear();
+                                    display_map2(rooms[0]);
+                                    display_map2(rooms[3]);
+                                    refresh();
+                                    sleep(10);
+                                    break;
+                                case 2:
+                                    clear();
+                                    display_map2(rooms[0]);
+                                    display_map2(rooms[3]);
+                                    display_map2(rooms[4]);
+                                    refresh();
+                                    sleep(10);
+                                    break;    
+                                case 3:
+                                    clear();
+                                    display_map2(rooms[1]);
+                                    display_map2(rooms[2]);
+                                    display_map2(rooms[5]);
+                                    refresh();
+                                    sleep(10);
+                                    break;    
+                                case 4:
+                                    clear();
+                                    display_map2(rooms[5]);
+                                    display_map2(rooms[2]);
+                                    refresh();
+                                    sleep(10);
+                                    break;
+                                case 5:
+                                    clear();
+                                    display_map2(rooms[4]);
+                                    display_map2(rooms[3]);
+                                    refresh();
+                                    sleep(10);
+                                    break;
+                            }
+                        }
+                        else if(a=='i' || a=='I'){
+                            gun_menu(&user);
+                        }
+                        else if(a=='w' || a=='W'){
+                            p->whicch_weapom_is_being_used=0;
+                            show_message("Now you have no weapon in hand!");
+                        }
+                        else if(a=='p' || a=='P'){
+                            spell_menu(p);
+                        }
+                    }
 }
-
 void initialize_map() {
     for (int y = 0; y < MAP_HEIGHT; y++) {
         for (int x = 0; x < MAP_WIDTH; x++) {
@@ -271,7 +469,7 @@ void creat_room(Room* rooms,int floor){
     // }
     rooms[5].height=rand()%8+7;
     rooms[5].width=rand()%12+7;
-    rooms[5].x=rand()%7 +130;
+    rooms[5].x=rand()%7 +120;
     rooms[5].y=rand()%4 +22;
     for(int i=rooms[5].y;i<rooms[5].y+rooms[5].height;i++){
         for(int j=rooms[5].x;j<rooms[5].x+rooms[5].width;j++){
@@ -714,6 +912,9 @@ void move_player(player* p,int floor){
                 b=1;
             }    
         }
+        else if(a=='j'){
+            food_menu();
+        }
         else if(a=='h' || a=='H'){
             time_t temps=start;
             pregame();
@@ -1003,9 +1204,11 @@ void check(Room * rooms,player* user , int floor){
                     user->health+=2;
                 gorosnegi-=2;
                 show_message3("sir:",gorosnegi);
-                if(!gorosnegi){
+                if(gorosnegi<=0){
+                    show_message("you are not hungry any more ");
+                    timing(user);
                     user->health=inital_health;
-                    gorosnegi=30;
+                    gorosnegi=20;
                 }
                 show_message2("you ate some food!  health: ",user->health);
                 map[i][j]='.';
@@ -2751,7 +2954,7 @@ void monsters_move(player*p,Monster* monsters){
                         }
 
                         if(map2[th][ass+jh]==monsters->type){
-                            monsters->life-=p->gun[p->whicch_weapom_is_being_used-1].damage;
+                            monsters->life-=p->gun[p->whicch_weapom_is_being_used-1].damage-ass+3;
                             p->gun[p->whicch_weapom_is_being_used-1].collects-=1;
                             show_message2("Wooow! you hit the Monster. Monsters's lifespan: ",monsters->life);
                             if(p->whicch_weapom_is_being_used==3){
@@ -2800,7 +3003,7 @@ void monsters_move(player*p,Monster* monsters){
                         }
                         // mvprintw(2,2,"%c",monsters->type);
                         if(map2[th+ass][jh]==monsters->type){
-                            monsters->life-=p->gun[p->whicch_weapom_is_being_used-1].damage;
+                            monsters->life-=p->gun[p->whicch_weapom_is_being_used-1].damage-ass+3;
                             p->gun[p->whicch_weapom_is_being_used-1].collects-=1;
                             show_message2("Wooow! you hit the Monster. Monsters's lifespan: ",monsters->life);
                             if(p->whicch_weapom_is_being_used==3){
@@ -2849,7 +3052,7 @@ void monsters_move(player*p,Monster* monsters){
                             }
                         }
                         if(map2[th][jh-ass]==monsters->type){
-                            monsters->life-=p->gun[p->whicch_weapom_is_being_used-1].damage;
+                            monsters->life-=p->gun[p->whicch_weapom_is_being_used-1].damage-ass +3;
                             p->gun[p->whicch_weapom_is_being_used-1].collects-=1;
                             show_message2("Wooow! you hit the Monster. Monsters's lifespan: ",monsters->life);
                             if(p->whicch_weapom_is_being_used==3){
@@ -2899,7 +3102,7 @@ void monsters_move(player*p,Monster* monsters){
                             }
                         }
                         if(map2[th-ass][jh]==monsters->type){
-                            monsters->life-=p->gun[p->whicch_weapom_is_being_used-1].damage;
+                            monsters->life-=p->gun[p->whicch_weapom_is_being_used-1].damage-ass+3;
                             p->gun[p->whicch_weapom_is_being_used-1].collects-=1;
                             show_message2("Wooow! you hit the Monster. Monsters's lifespan: ",monsters->life);
                             if(p->whicch_weapom_is_being_used==3){
@@ -4147,6 +4350,43 @@ void play_music(const char *filename) {
     }
 
     Mix_PlayMusic(music, -1);
+}
+void food_menu(){
+    int vn=0;
+    curs_set(0);
+    keypad(stdscr, TRUE);
+    
+    start_color();
+    init_pair(102, COLOR_BLUE, COLOR_BLACK);
+    init_pair(103, COLOR_BLACK, COLOR_BLUE);
+    init_pair(104, COLOR_GREEN, COLOR_BLACK);
+
+    while(1){
+        clear();  
+        attron(COLOR_PAIR(102));
+        draw_border_4();
+        mvprintw(LINES/2-6, COLS/2-15, "ordinary food");
+        mvprintw(LINES/2-5, COLS/2-15, "rotten food");
+        mvprintw(LINES/2-4, COLS/2-15, "great food");
+        mvprintw(LINES/2-3, COLS/2-15, "magic food");
+        attroff(COLOR_PAIR(102));
+        attron(COLOR_PAIR(103));
+        if(vn == 0) mvprintw(LINES/2-6, COLS/2-15, "ordinary food ");
+        if(vn == 1) mvprintw(LINES/2-5, COLS/2-15, "rotten food");
+        if(vn == 2) mvprintw(LINES/2-4, COLS/2-15, "great food");
+        if(vn==3)    mvprintw(LINES/2-3, COLS/2-15, "magic food");
+        attroff(COLOR_PAIR(103));
+
+        refresh();
+
+        int a = getch();
+        if(a == KEY_DOWN && vn < 3) vn++;
+        else if(a == KEY_UP && vn > 0) vn--;
+        else if(a == 'j') {
+            clear();
+            return;
+        } 
+    }           
 }
 #include <stdio.h>
 #include <stdlib.h>
